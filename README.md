@@ -1,3 +1,31 @@
+
+# Round Robbin Database
+
+This is repo how to plot a graph using rrdtool to log my personal laptop's temperature. 
+For more information about RRD [here](https://oss.oetiker.ch/rrdtool/)
+
+## Create Database
+
+```bash
+rrdtool create cputemp.rrd      \
+    --step 60 --start N         \
+    DS:Core0:GAUGE:120:U:100    \
+    DS:Core1:GAUGE:120:U:100    \
+    DS:Core2:GAUGE:120:U:100    \
+    DS:Core3:GAUGE:120:U:100    \
+    DS:Core4:GAUGE:120:U:100    \
+    DS:Core5:GAUGE:120:U:100    \
+    RRA:AVERAGE:0.5:1:1200      \
+    RRA:MIN:0.5:12:2400         \
+    RRA:MAX:0.5:12:2400         \
+    RRA:AVERAGE:0.5:12:2400
+```
+*Note:* You can install ```rrd``` on ubuntu ```sudo apt install rrdtool```
+
+## Create Script
+Following shell script get CPU Core temperatures and update database ```cputemp.rrd```. 
+### logcputemp.sh
+
 ```bash
 #!/bin/bash
 
@@ -12,22 +40,6 @@ core_temps['core4']=$(echo ${sensor_data} | jq -r '.[]."Core 4"."temp6_input"|se
 core_temps['core5']=$(echo ${sensor_data} | jq -r '.[]."Core 5"."temp7_input"|select(.!=null)')
 
 rrdtool update cputemp.rrd -t Core0:Core1:Core2:Core3:Core4:Core5 N:${core_temps[core0]}:${core_temps[core1]}:${core_temps[core2]}:${core_temps[core3]}:${core_temps[core4]}:${core_temps[core5]}
-```
-
-## Create Database
-```bash
-rrdtool create cputemp.rrd      \
-    --step 60 --start N         \
-    DS:Core0:GAUGE:120:U:100    \
-    DS:Core1:GAUGE:120:U:100    \
-    DS:Core2:GAUGE:120:U:100    \
-    DS:Core3:GAUGE:120:U:100    \
-    DS:Core4:GAUGE:120:U:100    \
-    DS:Core5:GAUGE:120:U:100    \
-    RRA:AVERAGE:0.5:1:1200      \
-    RRA:MIN:0.5:12:2400         \
-    RRA:MAX:0.5:12:2400         \
-    RRA:AVERAGE:0.5:12:2400
 ```
 
 ## Set Crontab
@@ -106,7 +118,7 @@ GPRINT:f:MIN:"Minumum\:%8.2lf %s\n"  \
 ```
 
 
-![](img/cputemp.png)
+![](images/cputemp.png)
 
 
 ## Network Monitoring
