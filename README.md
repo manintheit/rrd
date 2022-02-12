@@ -2,7 +2,7 @@
 # Round Robbin Database
 
 This is repo how to plot a graph using rrdtool to log my personal laptop's temperature. 
-For more information about RRD pn following links.
+For more information about RRD see following links.
 
 [official](https://oss.oetiker.ch/rrdtool/)
 
