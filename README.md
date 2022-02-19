@@ -35,18 +35,38 @@ Following shell script get CPU Core temperatures and update database ```cputemp.
 ```bash
 #!/bin/bash
 
-sensor_data=$(sensors -j)
+rrd_column=""
+rrd_data=""
+tmp_data=""
+tmp_column=""
+raw_data=$(sensors -j)
 declare -A core_temps
 # TODO: Enhance JQ to dynamically map CPU Core with its temperature.[Core0:30C, Core1:50]
-core_temps['core0']=$(echo ${sensor_data} | jq -r '.[]."Core 0"."temp2_input"|select(.!=null)')
-core_temps['core1']=$(echo ${sensor_data} | jq -r '.[]."Core 1"."temp3_input"|select(.!=null)')
-core_temps['core2']=$(echo ${sensor_data} | jq -r '.[]."Core 2"."temp4_input"|select(.!=null)')
-core_temps['core3']=$(echo ${sensor_data} | jq -r '.[]."Core 3"."temp5_input"|select(.!=null)')
-core_temps['core4']=$(echo ${sensor_data} | jq -r '.[]."Core 4"."temp6_input"|select(.!=null)')
-core_temps['core5']=$(echo ${sensor_data} | jq -r '.[]."Core 5"."temp7_input"|select(.!=null)')
+#jq  '[.[]| to_entries[] | select(.key|test("Core"))] | from_entries|map_values(to_entries[]|select(.key|test("input")).value)' sensor.json 
+tmp=$(echo "${raw_data}" | jq '[.[]| to_entries[] | select(.key|test("Core"))] | from_entries|map_values(to_entries[]|select(.key|test("input")).value)')
 
-rrdtool update cputemp.rrd -t Core0:Core1:Core2:Core3:Core4:Core5 N:${core_temps[core0]}:${core_temps[core1]}:${core_temps[core2]}:${core_temps[core3]}:${core_temps[core4]}:${core_temps[core5]}
+#Core 0, Core 1
+mapfile -t idx_core<<<$(echo "${tmp}" | jq -r   keys[])
+
+for idx in "${idx_core[@]}"
+do
+	temp=$(echo "${tmp}" | jq  --arg id  "$idx" '.[$id]')
+	#core_temps["${idx}"]="${temp}"
+	tmp_column+="$idx:"
+	tmp_data+="${temp}:"
+done
+
+rrd_column=$(echo ${tmp_column::-1}| tr -d ' ')
+rrd_data=$(echo ${tmp_data::-1}| tr -d ' ')
+
+#echo "rrdtool update cputemp.rrd -t ${rrd_column} N:${rrd_data}"
+rrdtool update cputemp.rrd -t "${rrd_column}" "N:${rrd_data}"
 ```
+
+```
+cat t.json | jq '.|to_entries[]|select(.key|test("^Core\\s"))|{cpu: .key, value: .value}'
+```
+
 
 ## Set Crontab
 
