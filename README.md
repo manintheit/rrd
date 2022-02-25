@@ -149,14 +149,78 @@ GPRINT:f:MIN:"Minumum\:%8.2lf %s\n"  \
 
 ## Network Monitoring
 
-### :warning: Not Completed Yet
+```
+ rrdtool create netstat.rrd   \
+    --step 60 --start N  \
+    DS:wlo1_rx:DERIVE:600:0:U \
+    DS:wlo1_tx:DERIVE:600:0:U  \     
+    RRA:AVERAGE:0.5:1:288 \
+    RRA:AVERAGE:0.5:3:672 \    
+    RRA:AVERAGE:0.5:12:744  \
+    RRA:AVERAGE:0.5:72:1480 \
+```
+
+## Crontab
 
 ```bash
+*/1 * * * * ~/netstat.sh wlo1
+```
+#### netstat.sh
+```bash
+#!/bin/bash
 declare -A stats
+#tmp=$(ethtool -S wlo1 | grep -E '(tx|rx)_bytes' | tr -d ' ')
+#stats[rx_bytes]=$(echo "$tmp" | awk -F ":" '/rx_bytes/{print $2}')
+#stats[tx_bytes]=$(echo "$tmp" | awk -F ":" '/tx_bytes/{print $2}')
 
-tmp=$(ethtool -S wlo1 | grep -E '(tx|rx)_bytes' | tr -d ' ')
-stats[rx_bytes]=$(echo "$tmp" | awk -F ":" '/rx_bytes/{print $2}')
-stats[tx_bytes]=$(echo "$tmp" | awk -F ":" '/tx_bytes/{print $2}')
+if [ "$#" -ne 1 ]; then
+  echo "Usage: $0 <iface name>" >&2
+  exit 1
+fi
+iface=${1}
+
+stats[rx_bytes]=$(cat "/sys/class/net/${iface}/statistics/rx_bytes")
+stats[tx_bytes]=$(cat "/sys/class/net/${iface}/statistics/tx_bytes")
+
 echo ${stats[rx_bytes]}
 echo ${stats[tx_bytes]}
+
+rrdtool update ~/netstat.rrd -t "${iface}_rx:${iface}_tx" "N:${stats[rx_bytes]}:${stats[tx_bytes]}"
 ```
+
+
+```bash
+rrdtool graph netsat.png \
+--imgformat=PNG \
+--start=-3600 \
+--title='Network Statistics' \
+--rigid \
+--base=1000 \
+--height=120 \
+--width=700 \
+--alt-autoscale-max \
+--lower-limit=0 \
+--vertical-label "RX/TX bytes" \
+--slope-mode \
+--font TITLE:8: \
+--font AXIS:8: \
+--font LEGEND:10: \
+--font UNIT:8: \
+DEF:a="netstat.rrd":wlo1_rx:AVERAGE \
+DEF:b="netstat.rrd":wlo1_tx:AVERAGE \
+LINE1:a#DEAFAF:"wlo1_rx"  \
+GPRINT:a:LAST:" Current\:%8.2lf %s"  \
+GPRINT:a:AVERAGE:"Average\:%8.2lf %s"  \
+GPRINT:a:MAX:"Maximum\:%8.2lf %s"  \
+GPRINT:a:MIN:"Minumum\:%8.2lf %s\n"  \
+LINE2:b#0F7059:"wlo1_tx"  \
+GPRINT:b:LAST:" Current\:%8.2lf %s"  \
+GPRINT:b:AVERAGE:"Average\:%8.2lf %s"  \
+GPRINT:b:MAX:"Maximum\:%8.2lf %s"  \
+GPRINT:b:MIN:"Minumum\:%8.2lf %s\n"  \
+```
+
+
+![](images/netstat.png)
+
+
